@@ -1,0 +1,528 @@
+# Lista 10
+# Professor: Davi Moreira
+# Disciplina: Análise de Dados
+# Aluna: Maria Eduarda R. N. Lessa
+
+# Definir diretório:
+setwd("C:/Users/Duda/Desktop/PPGCP/Análise de Dados/lista_10")
+
+## Questão 1:
+
+# Instalar e requerer pacotes necessários:
+install.packages("MASS")
+require(MASS)
+install.packages("fields")
+require(fields)
+require(car)
+
+# Carregar bases de dados e atribuí-las a objetos:
+banco <- read.csv("C:/Users/Duda/Desktop/PPGCP/Análise de Dados/lista_10/simula.correto.csv", header=T)
+banco2 <- read.csv("C:/Users/Duda/Desktop/PPGCP/Análise de Dados/lista_10/simula.errado.csv", header=T)
+attach(banco)
+
+# Gerar tabela com análise descritiva das variáveis:
+variav.descrit <- data.frame(y, x1, x2, x3)
+t(stats(variav.descrit))
+
+# Gerar box-plots para analisar distribuição de y, x1 e x2:
+par(mfrow=c(1,1))
+boxplot(y, x1, x2, names=c('Y','X','X2'), ylim=c(-20,20))
+
+# Gerar histogramas para analisar distribuição de y, x1 e x2:
+par(mfrow=c(1,3))
+hist(y, main="Histograma de Y")
+hist(x1, main="Histograma de X1")
+hist(x2, main="Histograma de X2")
+
+# Gerar modelos de regressão de mínimos quadrados:
+modelo.1 <- lm(y ~ x1)
+modelo.2 <- lm(y ~ x1 + x2)
+modelo.3 <- lm(y ~ x2 + x3)
+modelo.4 <- lm(y ~ x1 + x3)
+modelo.f <- lm(y ~ x1 + x2 + x3)
+
+# Gerar tabela da análise de variância (ANOVA) para comparar modelo estimado com
+# o modelo nulo:
+tab.ANOVA <- function(modelo,gln,gld) {
+	SSreg <- sum((y-mean(y))^2)
+ 	print(paste('SSreg:'))
+  print(SSreg)
+	RSS <- sum(modelo$res^2)
+ 	print(paste('RSS:'))
+  print(RSS)
+	F.teste <- ((SSreg-RSS)/(gln)/(RSS/gld))
+ 	print(paste('F:'))
+  print(F.teste)
+	print(paste('P-valor:'))
+  1-pf(F.teste,3,196)
+}
+
+tab.ANOVA(modelo.f, 3, 196)
+
+# Analisar resultados das regressões:
+summary(modelo.1)
+summary(modelo.2)
+summary(modelo.3)
+summary(modelo.4)
+summary(modelo.f)
+
+# Analisar a magnitude dos coeficientes da regressão a partir dos IC: 
+par(mfrow=c(1,1))
+betas <- coefficients(modelo.f) 
+IC <-  confint(modelo.f, level=0.95) 
+
+y.axis <- seq(from=1, to=length(betas))
+plot(betas, y.axis, type="p", pch=19, xlab="Magnitude dos Coeficientes", ylab="", axes=F, xlim=c(min(IC-.4), max(IC+.4)), ylim=c(min(y.axis-.2), max(y.axis+.2)), cex=1,yaxs="i",xaxs="i")
+segments(IC[,1], y.axis, IC[,2], y.axis)
+axis(1, at=seq(round(min(IC-.9)), round(max(IC+.9)), by=0.1), labels=seq(round(min(IC-.9)), round(max(IC+.9)), by=0.1), tick=T, cex.axis=1, mgp=c(2,.7,0))
+axis(2, at=y.axis, label=names(betas), las=1, tick=T, line=-.5, cex.axis=1, mgp=c(2,.7,0))
+abline(v=0, lty=2, col="red")
+
+
+# Analisar coeficientes a partir de gráfico dos valores estimados versus observados:
+novo.x <- data.frame(x1=seq(min(x1), max(x1), length.out=dim(banco)[1]), x2=mean(x2), x3=mean(x3))
+novo.x2 <- data.frame(x1=mean(x1), x2=seq(min(x2), max(x2), length.out=dim(banco)[1]),  x3=mean(x3))
+novo.x3 <- data.frame(x1=mean(x1), x2=mean(x2), x3=seq(min(x3), max(x3), length.out=dim(banco)[1]))
+
+par(mfrow=c(1,3))
+
+y.predito <- predict(modelo.f, novo.x, interval="confidence")
+matplot(novo.x$x1, y.predito, lty=c(1,2,2), col=c('black', 'red', 'red'), type="l", ylab="Valor predito de Y", xlab="X")
+abline(h=0, col='gray', lty=3)
+  
+y.predito <- predict(modelo.f, novo.x2, interval="confidence")
+matplot(novo.x2$x2, y.predito, lty=c(1,2,2), col=c('black', 'red', 'red'), type="l", ylab="Valor predito de Y", xlab="X2")
+abline(h=0, col='gray', lty=3)
+	
+y.predito <- predict(modelo.f, novo.x3, interval="confidence")
+matplot(novo.x3$x3, y.predito, lty=c(1,2,2), col=c('black', 'red', 'red'), type="l", ylab="Valor predito de Y", xlab="X3")
+abline(h=0, col='gray', lty=3)
+
+detach(banco)
+
+# Diagnosticar problemas nos modelos de regressão:
+
+# Gerar modelos de regressão:
+modelo1 <- lm(y ~ x1 + x2 + x3, data = banco)
+modelo2 <- lm(y ~ x1 + x2 + x3, data = banco2)
+
+# Os dados serão analisados a fim de verificar se cumprem os pressupostos necessários
+# requeridos pelo modelo de mínimos quadrados. Os gráficos gerados a partir da base 
+# "banco" atendem a estes pressupostos, enquanto os gerados a partir da base "banco2", 
+# não atendem. Os autores buscam apresentar estes dois exemplos para comparar dados
+# que se adequam ao modelo desenvolvido com dados que não se adequam. 
+
+# Configurar painel para exibir gráficos, lado a lado:
+par(mfrow=c(1,2))
+
+# Analisar influência dos outliers em cada modelo:
+outlierTest(modelo1) 
+outlierTest(modelo2)
+
+# Analisar distribuição dos resíduos com qqPlot:
+qqPlot(modelo1, main="QQ Plot 1") 
+qqPlot(modelo2, main="QQ Plot 2")
+ 
+# Analisar observações influentes com partial plots:
+avPlots(modelo1)
+avPlots(modelo2)
+
+# Analisar observações influentes com o plot do teste das distâncias de Cook: 
+limite <- 4/((length(banco$x)-length(modelo1$coefficients)-1)) 
+plot(modelo1, which=4, cook.levels=limite)
+limite <- 4/((length(banco2$x)-length(modelo2$coefficients)-1)) 
+plot(modelo2, which=4, cook.levels=limite)
+
+# Gerar gráfico de Influência:
+influencePlot(modelo1, id.method="identify", main="Gráfico de Influência 1", ylim=c(-6,6), xlim=c(0,0.25))
+influencePlot(modelo2, id.method="identify", main="Gráfico de Influência 2", ylim=c(-6,6 ), xlim=c(0,0.25))
+
+# Checar se resíduos apresentam distribuição normal:
+sresid <- studres(modelo1) 
+hist(sresid, freq=FALSE, ylim=c(0,0.4), main="Distribuição dos Resíduos Padronizados 1")
+xfit <- seq(min(sresid),max(sresid),length=40) 
+yfit <- dnorm(xfit) 
+lines(xfit, yfit)
+
+sresid <- studres(modelo2) 
+hist(sresid, freq=FALSE, main="Distribuição dos Resíduos Padronizados 2")
+xfit <- seq(min(sresid),max(sresid),length=40) 
+yfit <- dnorm(xfit) 
+lines(xfit, yfit)
+
+# Analisar homocedasticidade:
+ncvTest(modelo1)
+ncvTest(modelo2)
+
+# Plotar resíduos padronizados versus valores preditos:
+spreadLevelPlot(modelo1)
+spreadLevelPlot(modelo2)
+
+# Plotar component + residual plot para analisar se existe não-linearidade: 
+crPlots(modelo1)
+crPlots(modelo2)
+
+# Verificar se existe colinearidade:
+vif(modelo1)  
+sqrt(vif(modelo1)) > 2
+
+par(mfrow=c(1,2))
+plot(banco$x1, banco$x2, xlab='x1', ylab='x2') 
+plot(banco2$x2, banco2$x5, xlab='x1', ylab='x5')
+
+
+# Verificar se existe autocorrelação dos erros:
+durbinWatsonTest(modelo1)
+
+
+---
+
+  
+## Questão 2: 
+
+# letra a)
+
+# 1. É recomendável analisar graficamente os dados trabalhados antes de 
+# interpretar o p-valor. 
+
+# 2. Não faz sentido estimar o p-valor para amostras não aleatórias.
+
+# 3. O p-valor é afetado pelo tamanho da amostra.
+
+# 4. Não faz sentido estimar o p-valor quando analisamos dados populacionais (censo).
+
+# letra b)
+
+# 1. Algumas vezes, a análise gráfica dos dados não é útil. É necessário que o 
+# pesquisador saiba o efeito que procura identificar a partir da análise dos 
+# dados. Gráficos são úteis para relações lineares sem a presença de covariáveis, 
+# mas este nem sempre é o caso. Também, os autores que a teoria deve prever o 
+# modelo adequado a ser utilizado. 
+
+# 2. O p-valor é uma medida de ajuste da hipótese nula aos dados analisados. Ainda
+# que as amostras não sejam aleatórias, o p-valor pode trazer valiosas informações.
+
+# 3. Não necessariamente uma amostra maior resultará em um p-valor significante.
+# Caso a hipótese nula seja verdadeira, uma amostra grande não apresentará um
+# p-valor significante. É necessário distinguir o PODER de um teste e a sua
+# SIGNIFICÂNCIA. Também, os autores afirmam que efeitos que apresentam um 
+# p-valor significante em uma amostra pequena é tão relevante quanto aqueles que
+# apresentam um p-valor significante em uma amostra grande.
+
+# 4. Mesmo para dados populacionais o p-valor é útil, já que em um censo um dos
+# objetivos é rejeitar uma hipótese nula. Ademais, o p-valor nestes casos,
+# pode apontar alguma possível falha na coleta dos dados.
+
+# letra c)
+
+# 1. Por vezes, os gráficos podem fornecer, de fato, informações que não são úteis
+# para uma pesquisa; mas ignorá-los é um cenário ainda pior. Os autores afirmam
+# que gráficos são poderosas ferramentas não só para relações lineares, como 
+# também para identificar relações exponenciais, cúbicas e quadráticas. Por fim,
+# os autores afirmam que os dados podem ter um comportamento diferente do previsto
+# na teoria e, por isso, a análise gráfica torna-se essencial.
+
+# 2. Os autores apontam que o p-valor não é uma medida de ajuste, mas sim de probabilidade
+# de encontrar o valor observado no teste estatístico quando a hipótese nula é verdadeira.
+# Para amostras não aleatórias existe um problema de super ou subestimação do teste t, o que
+# afeta o p-valor. O teorema do limite central se aplica apenas às amostras aleatórias,
+# portanto, nas amostras não aleatórias, o p-valor, assim como os intervalos de confiança,
+# apresentarão problemas nas suas medidas.
+
+# 3. Os autores reiteram que quanto maior a amostra, menor o p-valor e apontam que
+# as medidas das amostras menores são mais instáveis; quando uma amostra é pequena,
+# apenas efeitos fortes são capazes de alcançar significância estatística. Um dos
+# pressupostos para a análise do p-valor é que a amostra apresenta uma distribuição 
+# normal e em amostras pequenas este pressuposto é difícil de ser testado com precisão. 
+# Em amostras grandes, mesmo efeitos fracos podem ser estatisticamente significantes.
+# Outro ponto é que em amostras pequenas os outliers afetam mais as estimativas, quando
+# comparadas às amostras maiores. 
+
+# 4. Os autores acreditam que falhas na coleta dos dados não é uma razão suficiente
+# para justificar a estimação do p-valor quando são utilizados dados populacionais. 
+# Eles afirmam que o p-valor não é uma medida capaz de apresentar a qualidade da 
+# mensuração das variáveis. Quando os dados utilizados fornecem informações a respeito
+# de toda a população, não há incerteza e não é necessária a utilização desta estimativa.
+
+
+---
+
+  
+# Questão 3:
+  
+# letra a)
+  
+# Samuels conclui que as eleições legislativas no Brasil são "state-centered",
+# ou seja, para os candidatos que disputam uma vaga no Congresso, as conexões a
+# nível estadual são mais importantes do que aquelas a nível nacional. Eles acreditam
+# que os candidatos à presidência detêm poucas ferramentas capazes de influenciar 
+# o resultado das eleições para o Congresso (enquanto governadores exercem grande
+# influência); este processo torna menos provável a formação de uma coalizão que 
+# apoie o governo do presidente incumbente. 
+
+# O modelo: O autor postula a hipótese de que será encontrada uma correlação,
+# condicionada ao período das eleições para governador, entre o número efetivo de
+# candidatos a governador e o número efetivo de candidatos nas listas abertas que
+# disputam uma vaga no Congresso. O autor utilizou uma série de dados 
+# "cross-sectional" sobre as eleições no Brasil nos períodos democráticos, entre
+# 1945 e 1964 e 1989 e 1998. A variável dependente, ENEL, é a medida do número de
+# listas formadas de candidatos que disputam uma vaga na Câmara dos Deputados em 
+# um estado "s" e tempo "t". São utilizadas 5 variáveis independentes principais:
+
+# PROXGOV: a proximidade entre a eleição governamental e a eleição para o Congresso,
+# em um estado "s" em um tempo "t". Recebe valor 1 caso aconteçam no mesmo período
+# e para proximidade e 0 para quando as eleições para o Congresso acontecem no
+# meio do mandato do governador. 
+
+# ENGOV: número efetivo de candidatos a governador em um estado "s" em um período
+# "t". O autor postula que o número de candidatos afetará indiretamente a VD a 
+# depender do período da eleição, como apontará a variável PROXGOV.
+
+# Interação PROXGOV x ENGOV.
+
+# PROXPRES: a proximidade entre a eleição presidencial e a eleição para o Congresso,
+# em um estado "s" em um tempo "t". Medida da mesma forma que PROXGOV, o autor
+# postula que não haverá efeito desta variável na variável dependente.
+
+# ENPRES: número efetivo de candidatos à presidência em um estado "s" em um 
+# período "t". 
+
+# Interação PROXPRES x ENPRES.
+
+# logM: é o log da magnitude do distrito, ou seja, o número de assentos a serem
+# preenchidos na Câmara dos Deputados em um estado "s" e período "t". 
+# Foram adicionadas as variáveis dummies YEARx e STATEx. 
+
+# Nos anos de 1950, 1994 e 1998 as eleições para presidência e governo do estado
+# ocorreram simultaneamente, por isso, foram rodadas três regressões, cada uma 
+# excluindo um dos anos em questão. 
+
+# O autor analisa o efeito das variáveis LogM, PROXGOV, PROXGOV x ENGOV, PROXPRES
+# e PROXPRES x ENPRES sobre a variável dependente e encontra que o efeito das variáveis
+# associadas com as eleições para governador são estatisticamente significantes,
+# enquanto àquelas associadas às eleições presidenciais não apresentaram efeitos
+# significantes. 
+
+# letra b)
+
+# Os autores afirmam que nos modelos interativos desenvolvidos por Samuels (2000)
+# os termos constitutivos foram omitidos. Quando são incluídos, nenhuma das variáveis
+# anteriormente analisadas apresentam efeitos estatisticamente significantes. Quando
+# o efeito marginal das eleições para governador no número de listas eleitorais é plotado,
+# para os 3 modelos apresentados, as eleições para governador não apresentam o "coattails
+# effect" (quando um político popular atrai votos para outros candidatos a cargos 
+# legislativos). Os autores afirmam que se existe algum "coattails effect" nas eleições
+# para o Congresso Nacional no Brasil, este efeito, na verdade, é percebido a nível 
+# presidencial e não estadual (governadores). 
+
+# letra c)
+
+# As quatro principais recomendações são: utilizar modelos interativos quando 
+# a hipótese a ser testada é condicional por natureza; incluir todos os termos
+# constitutivos nas especificações do modelo interativo; não interpretar termos
+# constitutivos como se fossem efeitos marginais incondicionais; calcular efeitos
+# marginais substancialmente significantes e os erros padrão.
+
+
+---
+
+  
+# Questão 4:
+setwd("C:/Users/Duda/Desktop/PPGCP/Análise de Dados/lista_10")
+
+# Instalar e requerer pacotes necessários:
+install.packages("rio")
+require(rio)
+require(dplyr)
+
+# Carregar base de dados:
+base_samuels <- import(file = "samuels.dta")
+
+# Checar variáveis:
+names(base_samuels)
+
+# Replicar o primeiro modelo (sem o ano de 1950):
+reg1 <- lm(enlists ~ proxgov + engov + engov_proxgov + proxpres + enpres + 
+             enpres_proxpres + logmag + year1945 + year1947 + year1954 + 
+             year1958 + year1962 + year1994 + year1998 + al + am + ac + ap + ba +
+             ce + df + es  + go + ma + mg + ms + mt + pa + pb + pe + pi + pr + rj +
+             rn + ro + rr + rs + sc + se + sp + toc, data = base_samuels)
+summary(reg1)
+
+# Plotar gráfico dos efeitos marginais de proxgov sobre enlists, condicionado a engov:
+beta.hat <- coef(reg1) 
+cov <- vcov(reg1)
+z0 <- seq(min(base_samuels$engov), max(base_samuels$engov), length.out = 1000)
+dy.dx <- beta.hat["proxgov"] + beta.hat["engov_proxgov"]*z0
+se.dy.dx <- sqrt(cov["proxgov", "proxgov"] + z0^2*cov["engov_proxgov", "engov_proxgov"] +
+                   2*z0*cov["proxgov", "engov_proxgov"])
+upr <- dy.dx + 1.96*se.dy.dx
+lwr <- dy.dx - 1.96*se.dy.dx
+par(family="serif",bty="l",mar=c(5,5.5,2,2))
+plot(x=z0, y=dy.dx,type="n",xlim=c(min(z0),max(z0)),
+     ylim=c(min(lwr),max(upr)),
+     xlab = "Número de Candidatos a Governador",
+     ylab = "Efeito Marginal de Eleições para Governador Temporalmente Próximas",
+     main= "Efeito Marginal de Eleições para Governador Temporalmente Próximas")
+lines(z0, dy.dx, lwd = 3)
+lines(z0, lwr)
+lines(z0, upr)
+abline(h=0,lty=2)
+
+# Plotar gráfico dos efeitos marginais de proxpres sobre enlists, condicionado a enpres:
+beta.hat2 <- coef(reg1) 
+cov2 <- vcov(reg1)
+z2 <- seq(min(base_samuels$enpres), max(base_samuels$enpres), length.out = 1000)
+dy.dx2 <- beta.hat2["proxpres"] + beta.hat2["enpres_proxpres"]*z2
+se.dy.dx2 <- sqrt(cov2["proxpres", "proxpres"] + z2^2*cov2["enpres_proxpres", "enpres_proxpres"] +
+                   2*z2*cov2["proxpres", "enpres_proxpres"])
+upr2 <- dy.dx2 + 1.96*se.dy.dx2
+lwr2 <- dy.dx2 - 1.96*se.dy.dx2
+par(family="serif",bty="l",mar=c(5,5.5,2,2))
+plot(x=z2, y=dy.dx2,type="n",xlim=c(min(z2),max(z2)),
+     ylim=c(min(lwr2),max(upr2)),
+     xlab = "Número de Candidatos a Presidente",
+     ylab = "Efeito Marginal de Eleições para Presidente Temporalmente Próximas",
+     main= "Efeito Marginal de Eleições para Presidente Temporalmente Próximas")
+lines(z2, dy.dx2, lwd = 3)
+lines(z2, lwr2)
+lines(z2, upr2)
+abline(h=0,lty=2)
+
+# Replicar o segundo modelo (sem o ano de 1994):
+reg2 <- lm(enlists ~ proxgov + engov + engov_proxgov + proxpres + enpres + 
+             enpres_proxpres + logmag + year1945 + year1947 + year1950 + year1954 + 
+             year1958 + year1962 +  year1998 + al + am + ac + ap + ba + ce + df + es +
+             go + ma + mg + ms + mt + pa + pb + pe + pi + pr + rj + rn + ro + rr + rs +
+             sc + se + sp + toc, data = base_samuels)
+summary(reg2)
+
+# Plotar gráfico dos efeitos marginais de proxgov sobre enlists, condicionado a engov:
+beta.hat3 <- coef(reg2) 
+cov3 <- vcov(reg2)
+z3 <- seq(min(base_samuels$engov), max(base_samuels$engov), length.out = 1000)
+dy.dx3 <- beta.hat3["proxgov"] + beta.hat3["engov_proxgov"]*z3
+se.dy.dx3 <- sqrt(cov3["proxgov", "proxgov"] + z3^2*cov3["engov_proxgov", "engov_proxgov"] +
+                    2*z3*cov3["proxgov", "engov_proxgov"])
+upr3 <- dy.dx3 + 1.96*se.dy.dx3
+lwr3 <- dy.dx3 - 1.96*se.dy.dx3
+par(family="serif",bty="l",mar=c(5,5.5,2,2))
+plot(x=z3, y=dy.dx3,type="n",xlim=c(min(z3),max(z3)),
+     ylim=c(min(lwr3),max(upr3)),
+     xlab = "Número de Candidatos a Governador",
+     ylab = "Efeito Marginal de Eleições para Governador Temporalmente Próximas",
+     main= "Efeito Marginal de Eleições para Governador Temporalmente Próximas")
+lines(z3, dy.dx3, lwd = 3)
+lines(z3, lwr3)
+lines(z3, upr3)
+abline(h=0,lty=2)
+
+# Plotar gráfico dos efeitos marginais de proxpres sobre enlists, condicionado a enpres:
+beta.hat4 <- coef(reg2) 
+cov4 <- vcov(reg2)
+z4 <- seq(min(base_samuels$enpres), max(base_samuels$enpres), length.out = 1000)
+dy.dx4 <- beta.hat4["proxpres"] + beta.hat4["enpres_proxpres"]*z4
+se.dy.dx4 <- sqrt(cov4["proxpres", "proxpres"] + z4^2*cov4["enpres_proxpres", "enpres_proxpres"] +
+                    2*z4*cov4["proxpres", "enpres_proxpres"])
+upr4 <- dy.dx4 + 1.96*se.dy.dx4
+lwr4 <- dy.dx4 - 1.96*se.dy.dx4
+par(family="serif",bty="l",mar=c(5,5.5,2,2))
+plot(x=z4, y=dy.dx4,type="n",xlim=c(min(z4),max(z4)),
+     ylim=c(min(lwr4),max(upr4)),
+     xlab = "Número de Candidatos a Presidente",
+     ylab = "Efeito Marginal de Eleições para Presidente Temporalmente Próximas",
+     main= "Efeito Marginal de Eleições para Presidente Temporalmente Próximas")
+lines(z4, dy.dx4, lwd = 3)
+lines(z4, lwr4)
+lines(z4, upr4)
+abline(h=0,lty=2)
+
+# Replicar o terceiro modelo (sem o ano 1998):
+reg3 <- lm(enlists ~ proxgov + engov + engov_proxgov + proxpres + enpres + 
+             enpres_proxpres + logmag + year1945 + year1947 + year1950 + year1954 + 
+             year1958 + year1962 +  year1994 + al + am + ac + ap + ba + ce + df + es +
+             go + ma + mg + ms + mt + pa + pb + pe + pi + pr + rj + rn + ro + rr + rs +
+             sc + se + sp + toc, data = base_samuels)
+summary(reg3)
+
+# Plotar gráfico dos efeitos marginais de proxgov sobre enlists, condicionado a engov:
+beta.hat5 <- coef(reg3) 
+cov5 <- vcov(reg3)
+z5 <- seq(min(base_samuels$engov), max(base_samuels$engov), length.out = 1000)
+dy.dx5 <- beta.hat5["proxgov"] + beta.hat5["engov_proxgov"]*z5
+se.dy.dx5 <- sqrt(cov5["proxgov", "proxgov"] + z5^2*cov5["engov_proxgov", "engov_proxgov"] +
+                    2*z5*cov5["proxgov", "engov_proxgov"])
+upr5 <- dy.dx5 + 1.96*se.dy.dx5
+lwr5 <- dy.dx5 - 1.96*se.dy.dx5
+par(family="serif",bty="l",mar=c(5,5.5,2,2))
+plot(x=z5, y=dy.dx5,type="n",xlim=c(min(z5),max(z5)),
+     ylim=c(min(lwr5),max(upr5)),
+     xlab = "Número de Candidatos a Governador",
+     ylab = "Efeito Marginal de Eleições para Governador Temporalmente Próximas",
+     main= "Efeito Marginal de Eleições para Governador Temporalmente Próximas")
+lines(z5, dy.dx5, lwd = 3)
+lines(z5, lwr5)
+lines(z5, upr5)
+abline(h=0,lty=2)
+
+# Plotar gráfico dos efeitos marginais de proxpres sobre enlists, condicionado a enpres:
+beta.hat6 <- coef(reg3) 
+cov6 <- vcov(reg3)
+z6 <- seq(min(base_samuels$enpres), max(base_samuels$enpres), length.out = 1000)
+dy.dx6 <- beta.hat6["proxpres"] + beta.hat6["enpres_proxpres"]*z6
+se.dy.dx6 <- sqrt(cov6["proxpres", "proxpres"] + z6^2*cov6["enpres_proxpres", "enpres_proxpres"] +
+                    2*z6*cov6["proxpres", "enpres_proxpres"])
+upr6 <- dy.dx6 + 1.96*se.dy.dx6
+lwr6 <- dy.dx6 - 1.96*se.dy.dx6
+par(family="serif",bty="l",mar=c(5,5.5,2,2))
+plot(x=z6, y=dy.dx6,type="n",xlim=c(min(z6),max(z6)),
+     ylim=c(min(lwr6),max(upr6)),
+     xlab = "Número de Candidatos a Presidente",
+     ylab = "Efeito Marginal de Eleições para Presidente Temporalmente Próximas",
+     main= "Efeito Marginal de Eleições para Presidente Temporalmente Próximas")
+lines(z6, dy.dx6, lwd = 3)
+lines(z6, lwr6)
+lines(z6, upr6)
+abline(h=0,lty=2)
+
+
+---
+
+  
+## Questão 5:
+
+# Requerer pacote:
+require(rio)
+
+# Carregar base de dados:
+base_hillary <- import(file = "hillary.dta")
+
+# Checar variáveis:
+names(base_hillary)
+
+# Gerar regressão:
+reghillary <- lm(hillary_thermo ~ income + jewish + income:jewish, data = base_hillary)
+
+# Analisar resultados:
+summary(reghillary)
+
+# Gerar plot:
+ggplot(base_hillary,aes(y = hillary_thermo, x= income, color = factor(jewish)))+
+  xlab("Renda") + ylab("Hillary Thermometer") + 
+  labs(title = "Regressão Renda*Hillary Thermometer",size = 10) + 
+  scale_colour_manual(name = "Judeu", labels = c("Não", "Sim"), values = c("lightsalmon", "turquoise")) +    
+  stat_smooth(method="lm", se = F)
+
+
+# A hipótese condicional, de que especificamente para os americanos judeus é observado um
+# efeito da renda sobre a avaliação de Hillary Clinton, não é estatisticamente 
+# significante (observando os resultados da regressão para a interação entre 
+# income e jewish); a hipótese nula, portanto, não pode ser rejeitada. Ao analisar o
+# coeficiente de income, controlado para jewish, é possível observar que o resultado
+# é estatisticamente significante, ou seja, a renda do eleitor que não é judeu tem
+# efeito negativo sobre a variável dependente, que é a avaliação dada por estes eleitores
+# à Hillary Clinton (quanto maior a renda, pior a avaliação). Ademais, é possível 
+# perceber que o efeito marginal da interação entre income e jewish é representado
+# pelo beta de income (-0.99) mais o beta da interação (1.42), que é igual a 0.43; ou seja,
+# caso fosse significante, o aumento de uma unidade na renda dos eleitores que são judeus 
+# seria responsável por uma variação de +0.43 unidade no termômetro de avaliação de Hillary Clinton. 
